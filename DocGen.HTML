@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DocGen — KI-Docstring-Generator</title>
+<style>
+  :root {
+    --bg: #121212;
+    --panel: #212121;
+    --primary: #4f3cc9;
+    --accent: #b39ddb;
+    --border: #333333;
+    --text: #e0e0e0;
+    --text-dim: #a0a0a0;
+    --sans: 'Inter', -apple-system, sans-serif;
+    --mono: monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 20px; background: var(--bg); color: var(--text);
+    font-family: var(--sans); display: flex; justify-content: center; align-items: center; min-height: 100vh;
+  }
+  .container {
+    width: 100%; max-width: 900px; background: var(--panel); border-radius: 16px;
+    overflow: hidden; border: 1px solid var(--border);
+  }
+  header {
+    background: var(--primary); padding: 16px 24px; display: flex;
+    justify-content: space-between; align-items: center;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 1.1rem; }
+  .badge {
+    font-size: 11px; background: rgba(255,255,255,0.15); padding: 4px 10px;
+    border-radius: 20px; display: flex; align-items: center; gap: 4px;
+  }
+  main { padding: 32px; display: flex; flex-direction: column; gap: 24px; }
+  .titles { text-align: center; }
+  .titles h1 { font-size: 1.3rem; margin: 0 0 8px 0; }
+  .titles p { margin: 0; color: var(--text-dim); font-size: 0.9rem; }
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 12px; padding: 40px;
+    text-align: center; cursor: pointer; transition: border-color 0.2s;
+  }
+  .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); }
+  .drop-zone svg { width: 40px; height: 40px; stroke: var(--accent); fill: none; margin-bottom: 12px; }
+  
+  /* Funktionswähler */
+  .function-select-wrap {
+    display: none; flex-direction: column; gap: 8px; background: rgba(255,255,255,0.02);
+    padding: 16px; border-radius: 12px; border: 1px solid var(--border);
+  }
+  .function-select-wrap label { font-size: 0.9rem; font-weight: 600; }
+  select {
+    background: #121212; border: 1px solid var(--border); color: var(--text);
+    padding: 10px; border-radius: 8px; outline: none; font-family: var(--sans);
+  }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .card {
+    border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+    text-align: center; cursor: pointer; transition: 0.2s; background: transparent;
+  }
+  .card.active { background: rgba(79, 60, 201, 0.15); border-color: var(--accent); }
+  .card svg { width: 24px; height: 24px; fill: var(--accent); margin-bottom: 8px; }
+  .card-title { font-weight: 600; font-size: 0.95rem; }
+  .card-sub { color: var(--text-dim); font-size: 0.8rem; margin-top: 4px; }
+  .results {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+    background: var(--border); border-radius: 12px; overflow: hidden; margin-top: 10px;
+  }
+  .pane { background: var(--panel); display: flex; flex-direction: column; height: 350px; }
+  .pane-head {
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; font-size: 11px; text-transform: uppercase;
+  }
+  .pane-head span { color: var(--accent); }
+  pre { 
+    margin: 0; padding: 16px; font-family: var(--mono); font-size: 12px; 
+    overflow: auto; flex: 1; white-space: pre-wrap; word-break: break-all; 
+  }
+  .placeholder {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="brand">📄 DocGen</div>
+    <div class="badge">✨ KI-gestützt</div>
+  </header>
+
+  <main>
+    <div class="titles">
+      <h1>Docstrings automatisch generieren</h1>
+      <p>Laden Sie eine Python-Datei hoch und lassen Sie die KI die Dokumentation schreiben.</p>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+      <svg viewBox="0 0 24 24"><path stroke-width="2" d="M12 16V8M12 8L9 11M12 8L15 11M20 12A8 8 0 114 12"/></svg>
+      <div id="dropText">Python-Datei hierher ziehen<br><span style="font-size:0.8rem; color:var(--text-dim)">oder klicken, um zu suchen · Nur .py-Dateien</span></div>
+      <input type="file" id="fileInput" accept=".py" style="display:none">
+    </div>
+
+    <!-- Funktionswähler -->
+    <div class="function-select-wrap" id="funcWrap">
+      <label for="funcSelect">Wählen Sie die zu dokumentierende Funktion:</label>
+      <select id="funcSelect"></select>
+    </div>
+
+    <div class="grid">
+      <div class="card active" data-style="Google">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+        <div class="card-title">Google Stil</div>
+        <div class="card-sub">Args / Returns</div>
+      </div>
+      <div class="card" data-style="NumPy">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        <div class="card-title">NumPy Stil</div>
+        <div class="card-sub">Parameters</div>
+      </div>
+      <div class="card" data-style="Sphinx">
+        <svg viewBox="0 0 24 24"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+        <div class="card-title">Sphinx Stil</div>
+        <div class="card-sub">:param :returns</div>
+      </div>
+    </div>
+
+    <div class="results">
+      <div class="pane">
+        <div class="pane-head">Originalcode <span id="origMeta"></span></div>
+        <div class="placeholder" id="origPlaceholder">Noch keine Datei hochgeladen</div>
+        <pre id="origCode" style="display:none"></pre>
+      </div>
+      <div class="pane">
+        <div class="pane-head">Generierter Docstring <span id="genMeta"></span></div>
+        <div class="placeholder" id="genPlaceholder">Docstrings erscheinen hier</div>
+        <pre id="genCode" style="display:none"></pre>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const API_BASE = "http://localhost:8000";
+
+  const fileInput = document.getElementById('fileInput');
+  const dropZone = document.getElementById('dropZone');
+  const dropText = document.getElementById('dropText');
+  const funcWrap = document.getElementById('funcWrap');
+  const funcSelect = document.getElementById('funcSelect');
+  
+  const origPlaceholder = document.getElementById('origPlaceholder');
+  const origCode = document.getElementById('origCode');
+  const genPlaceholder = document.getElementById('genPlaceholder');
+  const genCode = document.getElementById('genCode');
+  const origMeta = document.getElementById('origMeta');
+  const genMeta = document.getElementById('genMeta');
+  
+  let currentStyle = 'Google';
+  let detectedFunctions = [];
+
+  // 1. Stil-Auswahl
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      currentStyle = card.dataset.style;
+      if (funcSelect.value !== "") generateDocstring();
+    });
+  });
+
+  // 2. Drag & Drop
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', () => { if (fileInput.files.length) handleFile(fileInput.files[0]); });
+
+  // 3. Datei verarbeiten
+  async function handleFile(file) {
+    if (!file.name.endsWith('.py')) return alert('Bitte laden Sie ausschließlich eine .py-Datei hoch.');
+    
+    dropText.innerHTML = `<strong>${file.name}</strong><br><span style="font-size:0.8rem">Wird hochgeladen...</span>`;
+    origMeta.textContent = file.name;
+    
+    const text = await file.text();
+    origCode.textContent = text;
+    origCode.style.display = 'block';
+    origPlaceholder.style.display = 'none';
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch(`${API_BASE}/upload`, { 
+        method: 'POST', 
+        body: formData 
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || data.error || "Fehler beim Hochladen");
+      }
+
+      detectedFunctions = data.functions || [];
+
+      if (detectedFunctions.length === 0) {
+        throw new Error("Keine Funktionen in dieser Datei gefunden.");
+      }
+
+      funcSelect.innerHTML = '';
+      detectedFunctions.forEach((fn, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `${fn.name}(${fn.parameters.join(', ')}) [Zeile ${fn.line}]`;
+        funcSelect.appendChild(opt);
+      });
+
+      funcWrap.style.display = 'flex';
+      dropText.innerHTML = `<strong>${file.name}</strong><br><span style="color:#7ec99b">${detectedFunctions.length} Funktion(en) gefunden!</span>`;
+      
+      generateDocstring();
+
+    } catch (err) {
+      dropText.innerHTML = `<strong>${file.name}</strong><br><span style="color:#e8746b">${err.message}</span>`;
+      funcWrap.style.display = 'none';
+    }
+  }
+
+  funcSelect.addEventListener('change', generateDocstring);
+
+  // 4. Docstring generieren
+  async function generateDocstring() {
+    const selectedIndex = funcSelect.value;
+    if (selectedIndex === "") return;
+
+    const fn = detectedFunctions[selectedIndex];
+
+    genPlaceholder.style.display = 'none';
+    genCode.style.display = 'block';
+    genCode.textContent = 'Docstring wird generiert...';
+
+    try {
+      const res = await fetch(`${API_BASE}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: fn.name,
+          parameters: fn.parameters,
+          style: currentStyle
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.detail || data.error || "Fehler bei der Generierung");
+
+      genCode.textContent = data.docstring || '';
+      genMeta.textContent = `${currentStyle.toUpperCase()}-STIL`;
+    } catch (err) {
+      genCode.textContent = `Fehler: ${err.message}`;
+    }
+  }
+</script>
+
+</body>
+</html>
