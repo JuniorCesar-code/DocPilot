@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DocPilot — KI Docstring Generator</title>
+<style>
+  :root {
+    --bg: #1a1410;
+    --panel: #231c14;
+    --card-bg: #1e170f;
+    --primary: #c4622d;
+    --accent: #e0854a;
+    --border: #3a2e22;
+    --text: #f0e6d8;
+    --text-dim: #9e8a76;
+    --text-muted: #5a4a3a;
+    --success: #7ec99b;
+    --error: #e8746b;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: var(--sans); min-height: 100vh;
+    padding: 16px;
+    display: flex; justify-content: center; align-items: flex-start;
+  }
+  .container {
+    width: 100%; max-width: 960px;
+    background: var(--panel); border-radius: 16px;
+    overflow: hidden; border: 1px solid var(--border);
+  }
+
+  /* HEADER */
+  header {
+    background: var(--primary); padding: 14px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.1rem; color: #fff; }
+  .badge {
+    font-size: 11px; background: rgba(255,255,255,0.2); color: #fff;
+    padding: 4px 12px; border-radius: 20px;
+  }
+
+  /* MAIN */
+  main { padding: 24px 20px; display: flex; flex-direction: column; gap: 20px; }
+
+  .titles { text-align: center; }
+  .titles h1 { font-size: clamp(1rem, 3vw, 1.3rem); font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .titles p { color: var(--text-dim); font-size: clamp(0.8rem, 2vw, 0.9rem); }
+
+  /* DROP ZONE */
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 12px;
+    padding: clamp(20px, 5vw, 40px) 20px;
+    text-align: center; cursor: pointer; transition: border-color 0.2s;
+    background: var(--card-bg);
+  }
+  .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); }
+  .drop-icon { font-size: 2rem; color: var(--primary); margin-bottom: 10px; }
+  .drop-text { color: var(--text); font-size: 0.95rem; }
+  .drop-sub { color: var(--text-dim); font-size: 0.8rem; margin-top: 4px; }
+
+  /* STYLE CARDS */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+  }
+  .card {
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: clamp(12px, 3vw, 18px) 10px;
+    text-align: center; cursor: pointer; transition: 0.2s;
+    background: var(--card-bg); color: var(--text);
+  }
+  .card:hover { border-color: var(--accent); }
+  .card.active { background: rgba(196,98,45,0.18); border-color: var(--primary); }
+  .card-icon { font-size: 1.3rem; color: var(--primary); margin-bottom: 6px; }
+  .card-title { font-weight: 600; font-size: clamp(0.8rem, 2vw, 0.92rem); }
+  .card-sub { color: var(--text-dim); font-size: clamp(0.7rem, 1.5vw, 0.78rem); margin-top: 3px; }
+
+  /* RESULTS — stacks vertically on mobile */
+  .results {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  @media (max-width: 600px) {
+    .results { grid-template-columns: 1fr; }
+  }
+
+  .pane { background: var(--panel); display: flex; flex-direction: column; min-height: 200px; }
+  .pane-head {
+    padding: 9px 14px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .pane-head span { color: var(--primary); font-size: 10px; }
+
+  /* pre grows with content — no fixed height */
+  pre {
+    margin: 0; padding: 14px;
+    font-family: var(--mono); font-size: clamp(11px, 1.5vw, 13px);
+    line-height: 1.6; color: #d4c4b0;
+    white-space: pre-wrap;       /* wraps long lines */
+    word-break: break-word;
+    overflow-x: auto;
+    flex: 1;
+  }
+  .placeholder {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); font-size: 13px; padding: 24px;
+    text-align: center;
+  }
+
+  /* DOWNLOAD BAR */
+  .dl-bar {
+    display: flex; justify-content: flex-end;
+    padding: 10px 14px; border-top: 1px solid var(--border);
+    background: var(--panel); flex-shrink: 0;
+  }
+  .dl-btn {
+    display: none; align-items: center; gap: 6px;
+    font-size: 12px; padding: 6px 14px; border-radius: 8px;
+    border: 1px solid var(--primary); background: transparent;
+    color: var(--primary); cursor: pointer; font-family: var(--sans);
+    transition: background 0.15s;
+  }
+  .dl-btn:hover { background: rgba(196,98,45,0.15); }
+  .dl-btn.visible { display: flex; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="brand">📄 DocPilot</div>
+    <div class="badge">✨ KI-gestützt</div>
+  </header>
+
+  <main>
+    <div class="titles">
+      <h1>Docstrings automatisch generieren</h1>
+      <p>Lade eine Python-Datei hoch und lass DocPilot die Dokumentation schreiben.</p>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+      <div class="drop-icon">⬆️</div>
+      <div class="drop-text" id="dropText">Python-Datei hierher ziehen</div>
+      <div class="drop-sub" id="dropSub">oder klicken, um zu suchen · Nur .py-Dateien</div>
+      <input type="file" id="fileInput" accept=".py" style="display:none">
+    </div>
+
+    <div class="grid">
+      <div class="card active" data-style="google">
+        <div class="card-icon">🌐</div>
+        <div class="card-title">Google Stil</div>
+        <div class="card-sub">Args / Returns</div>
+      </div>
+      <div class="card" data-style="numpy">
+        <div class="card-icon">➕</div>
+        <div class="card-title">NumPy Stil</div>
+        <div class="card-sub">Parameters</div>
+      </div>
+      <div class="card" data-style="sphinx">
+        <div class="card-icon">🔧</div>
+        <div class="card-title">Sphinx Stil</div>
+        <div class="card-sub">:param :returns</div>
+      </div>
+    </div>
+
+    <div class="results">
+      <div class="pane">
+        <div class="pane-head">Originalcode <span id="origMeta"></span></div>
+        <div class="placeholder" id="origPlaceholder">Noch keine Datei hochgeladen</div>
+        <pre id="origCode" style="display:none"></pre>
+      </div>
+      <div class="pane">
+        <div class="pane-head">Generierter Docstring <span id="genMeta"></span></div>
+        <div class="placeholder" id="genPlaceholder">Docstrings erscheinen hier</div>
+        <pre id="genCode" style="display:none"></pre>
+        <div class="dl-bar">
+          <button class="dl-btn" id="dlBtn" onclick="downloadResult()">
+            ⬇️ Datei herunterladen
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const fileInput=document.getElementById('fileInput');
+const dropZone=document.getElementById('dropZone');
+const dropText=document.getElementById('dropText');
+const dropSub=document.getElementById('dropSub');
+const origPlaceholder=document.getElementById('origPlaceholder');
+const origCode=document.getElementById('origCode');
+const genPlaceholder=document.getElementById('genPlaceholder');
+const genCode=document.getElementById('genCode');
+const origMeta=document.getElementById('origMeta');
+const genMeta=document.getElementById('genMeta');
+const dlBtn=document.getElementById('dlBtn');
+
+let currentStyle='google';
+let lastFile=null;
+let lastResult='';
+let lastFileName='';
+
+document.querySelectorAll('.card').forEach(card=>{
+  card.addEventListener('click',()=>{
+    document.querySelectorAll('.card').forEach(c=>c.classList.remove('active'));
+    card.classList.add('active');
+    currentStyle=card.dataset.style;
+    if(lastFile) processFile(lastFile);
+  });
+});
+
+dropZone.addEventListener('click',()=>fileInput.click());
+dropZone.addEventListener('dragover',(e)=>{e.preventDefault();dropZone.classList.add('dragover');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop',(e)=>{e.preventDefault();dropZone.classList.remove('dragover');if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0]);});
+fileInput.addEventListener('change',()=>{if(fileInput.files.length)handleFile(fileInput.files[0]);});
+
+async function handleFile(file){
+  if(!file.name.endsWith('.py')){alert('Bitte eine .py-Datei hochladen.');return;}
+  lastFile=file;
+  lastFileName=file.name.replace('.py','_documented.py');
+  dropText.textContent=file.name;
+  dropSub.innerHTML='<span style="color:#7ec99b">Wird verarbeitet…</span>';
+  origMeta.textContent=file.name;
+  const text=await file.text();
+  origCode.textContent=text;
+  origCode.style.display='block';
+  origPlaceholder.style.display='none';
+  dlBtn.classList.remove('visible');
+  await processFile(file);
+}
+
+async function processFile(file){
+  genPlaceholder.style.display='none';
+  genCode.style.display='block';
+  genCode.textContent='Generiere Docstrings…';
+  genMeta.textContent='';
+  dlBtn.classList.remove('visible');
+  try{
+    const formData=new FormData();
+    formData.append('file',file);
+    const res=await fetch('http://127.0.0.1:8000/upload',{method:'POST',body:formData});
+    const data=await res.json();
+    if(data.error){genCode.textContent='Fehler: '+data.error;return;}
+    lastResult=buildDocumentedCode(origCode.textContent,data.functions,currentStyle);
+    genCode.textContent=lastResult;
+    genMeta.textContent=currentStyle.toUpperCase()+' STIL';
+    dropSub.innerHTML='<span style="color:#7ec99b">Bereit ✓</span>';
+    dlBtn.classList.add('visible');
+  }catch(e){
+    genCode.textContent='Verbindungsfehler — läuft der Backend-Server?';
+    dropSub.innerHTML='<span style="color:#e8746b">Fehler beim Hochladen</span>';
+  }
+}
+
+function buildDocumentedCode(originalCode,functions,style){
+  if(!functions||functions.length===0)return originalCode;
+  let lines=originalCode.split('\n');
+  let offset=0;
+  functions.sort((a,b)=>a.line-b.line);
+  functions.forEach(fn=>{
+    const ds=formatDocstring(fn.generated_docstring||'',fn,style);
+    const insertAt=fn.line-1+offset;
+    const indentMatch=lines[insertAt]&&lines[insertAt].match(/^(\s*)/);
+    const indent=(indentMatch?indentMatch[1]:'')+' '.repeat(4);
+    const dsLines=ds.split('\n').map(l=>indent+l);
+    lines.splice(insertAt+1,0,...dsLines);
+    offset+=dsLines.length;
+  });
+  return lines.join('\n');
+}
+
+function formatDocstring(raw,fn,style){
+  const desc=raw.replace(/^["']{3}|["']{3}$/g,'').trim()||'TODO: Beschreibung hinzufügen.';
+  const params=fn.parameters||[];
+  if(style==='sphinx'){
+    let out='"""'+desc;
+    if(params.length){out+='\n';params.forEach(p=>{out+='\n:param '+p+': ';});}
+    out+='\n:returns: \n"""';return out;
+  }
+  if(style==='numpy'){
+    let out='"""'+desc+'\n';
+    if(params.length){out+='\nParameters\n----------\n';params.forEach(p=>{out+=p+' : type\n    Beschreibung von '+p+'.\n';});}
+    out+='\nReturns\n-------\ntype\n    Beschreibung.\n"""';return out;
+  }
+  let out='"""'+desc+'\n';
+  if(params.length){out+='\nArgs:\n';params.forEach(p=>{out+='    '+p+' (type): Beschreibung von '+p+'.\n';});}
+  out+='\nReturns:\n    type: Beschreibung.\n"""';return out;
+}
+
+function downloadResult(){
+  if(!lastResult)return;
+  const blob=new Blob([lastResult],{type:'text/plain'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=lastFileName;
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>

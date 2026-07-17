@@ -1,0 +1,148 @@
+================================================================
+                        DOCPILOT
+            Software Requirements Specification
+      AI in Software Engineering — Universität Duisburg-Essen
+                          SS 2026
+================================================================
+
+
+----------------------------------------------------------------
+1. INTRODUCTION
+----------------------------------------------------------------
+
+1.1 Purpose
+-----------
+This document defines the software requirements for DocPilot,
+an AI-powered web application that automatically generates
+Python docstrings from uploaded source files. It serves as a
+reference for the development team and the supervising professor.
+
+1.2 Project Overview
+--------------------
+DocPilot accepts a Python (.py) file from the user, parses it
+to extract function definitions, sends each function to an LLM
+API, and returns a fully documented Python file with PEP 257-
+compliant docstrings inserted. The application is developed as
+part of the AI in Software Engineering course.
+
+1.3 Scope
+---------
+- Input   : Python source files (.py only)
+- Output  : Documented Python file with AI-generated docstrings
+- Interface: Web browser (no installation required for end users)
+- LLM Provider: GWDG Chat AI API (AcademicCloud / KISSKI)
+
+
+----------------------------------------------------------------
+2. OVERALL DESCRIPTION
+----------------------------------------------------------------
+
+2.1 System Architecture
+-----------------------
+DocPilot follows a client-server architecture with two components:
+
+- Backend  : FastAPI (Python) — file upload, AST parsing, LLM API calls
+- Frontend : Single-page HTML/CSS/JS — UI, docstring formatting, download
+
+2.2 Technology Stack
+--------------------
+Component              Technology
+-----------            ------------------------------------------
+Backend Framework      FastAPI (Python)
+Code Parsing           Python ast module
+LLM Integration        OpenAI-compatible client -> GWDG Chat AI API
+LLM Model              meta-llama-3.1-8b-instruct
+Frontend               HTML5 / CSS3 / Vanilla JavaScript
+Environment            python-dotenv (.env file for API key)
+Server                 Uvicorn (ASGI)
+
+
+----------------------------------------------------------------
+3. FUNCTIONAL REQUIREMENTS
+----------------------------------------------------------------
+
+ID       Category             Requirement                                Priority
+-------- -------------------- ------------------------------------------ ----------
+FR-01    File Upload          Accept .py files via drag-and-drop          Must Have
+                              or file browser
+FR-02    File Validation      Reject non-.py and empty files              Must Have
+                              with a clear error message
+FR-03    AST Parsing          Parse uploaded files using Python ast        Must Have
+                              and extract all function definitions
+FR-04    Parameter Extraction Extract name, parameters, and line          Must Have
+                              number of each function
+FR-05    Docstring Generation Send each function to GWDG LLM API          Must Have
+                              and receive a PEP 257-compliant docstring
+FR-06    Style Selection      Support Google, NumPy, and Sphinx styles    Must Have
+FR-07    Code Preview         Display original and documented code        Must Have
+                              side by side
+FR-08    File Download        Allow user to download the documented       Must Have
+                              Python file
+FR-09    Frontend Serving     Backend serves the frontend HTML at /ui     Must Have
+FR-10    Health Check         Expose GET / endpoint confirming service    Should Have
+                              is running
+
+
+----------------------------------------------------------------
+4. NON-FUNCTIONAL REQUIREMENTS
+----------------------------------------------------------------
+
+ID       Category             Requirement                                Priority
+-------- -------------------- ------------------------------------------ ----------
+NFR-01   Security             API key stored in .env — never committed   Must Have
+                              to version control
+NFR-02   Responsiveness       UI fully usable on desktop and mobile      Must Have
+                              (min 320px width)
+NFR-03   Content Adaptability Code panes grow with content —             Must Have
+                              no fixed height that cuts off output
+NFR-04   Error Handling       All API and upload errors shown to user    Must Have
+                              in plain language
+NFR-05   Performance          Docstring generation per function          Should Have
+                              completes within 10 seconds
+NFR-06   Maintainability      Clear separation between routes,           Should Have
+                              LLM logic, and parsing
+NFR-07   Portability          Runs on Windows, macOS, Linux              Should Have
+                              with Python 3.11+
+NFR-08   Data Privacy         No uploaded code stored permanently —      Must Have
+                              all processing is in-memory per request
+
+
+----------------------------------------------------------------
+5. CONSTRAINTS
+----------------------------------------------------------------
+
+- Only Python (.py) files are supported — no other languages
+- The LLM API key must be obtained from GWDG/KISSKI and
+  requires AcademicCloud access
+- An active internet connection is required for LLM API calls
+- Python 3.11 or higher is required for the backend
+- The application is intended for academic use only
+
+
+----------------------------------------------------------------
+6. API SPECIFICATION
+----------------------------------------------------------------
+
+Method   Endpoint    Input                Output               Description
+-------- ----------- -------------------- -------------------- ------------------
+GET      /           —                    JSON status message  Health check
+GET      /ui         —                    HTML page            Serves frontend
+POST     /upload     .py file             JSON with functions  Main processing
+                     (multipart)         + docstrings          endpoint
+
+
+----------------------------------------------------------------
+7. TEAM & ROLES
+----------------------------------------------------------------
+
+Member           Role                   Responsibility
+---------------- ---------------------- ---------------------------------
+Junior Cesar     Backend Developer      FastAPI, LLM integration,
+                                        AST parsing
+Arsene           Frontend Developer     UI design, HTML/CSS/JS
+Maelle           Backend Developer      API routes, testing
+
+
+================================================================
+DocPilot — AI in Software Engineering — Universität Duisburg-Essen — SS 2026
+================================================================
