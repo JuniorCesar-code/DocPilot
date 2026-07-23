@@ -1,4 +1,4 @@
-# 📄 DocPilot — KI-gestützter Docstring Generator
+# 📄 DocPilot — AI-powered Docstring Generator
 
 DocPilot is an AI-powered web application that automatically generates Python docstrings from uploaded `.py` files. It uses a FastAPI backend connected to the GWDG Chat AI LLM API (AcademicCloud) and a responsive single-page HTML frontend.
 
