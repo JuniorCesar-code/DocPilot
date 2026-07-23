@@ -70,6 +70,12 @@ pip install -r requirements.txt
 
 Create a `.env` file inside the `Backend/` folder:
 
+# Windows
+```bash
+copy .env.example .env
+```
+
+# macOS / Linux
 ```bash
 cp .env.example .env
 ```
@@ -85,7 +91,6 @@ GWDG_API_KEY=your-api-key-here
 ### 5. Start the backend
 
 ```bash
-cd Backend
 uvicorn main:app --reload
 ```
 
