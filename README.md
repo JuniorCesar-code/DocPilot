@@ -40,11 +40,15 @@ DocPilot/
 ### 1. Clone the repository
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/JuniorCesar-code/DocPilot.git
 cd DocPilot
 ```
 
-### 2. Create and activate a virtual environment
+### 2. Create and activate virtual environment
+
+```bash
+cd Backend
+```
 
 ```bash
 # Windows
@@ -59,7 +63,6 @@ source .venv/bin/activate
 ### 3. Install dependencies
 
 ```bash
-cd Backend
 pip install -r requirements.txt
 ```
 
